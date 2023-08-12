@@ -29,23 +29,25 @@ rust::Vec<CxxDeviceInfo> get_devices() {
     return devices;
 }
 
-void get_device_info(uint16_t index) {
-    auto rdFactory = RadioFactory();
-    auto radio = rdFactory.OpenDevice(index);
-    std::cout << radio->ToString() << std::endl;
-    std::cout << typeid(radio).name() << std::endl;
-}
-
-void flash_device(){
-    auto rdFactory = RadioFactory();
+void check_device_availability(RadioFactory rdFactory) {
     const auto &d = rdFactory.ListDevices();
     if(d.size() <= 0)
         throw std::runtime_error("No radio detected");
-    // We flash the first radio
-    uint16_t index = 0;
+}
+
+void get_device_info(uint16_t index) {
+    auto rdFactory = RadioFactory();
+    auto check_device_availability(rdFactory);
     auto radio = rdFactory.OpenDevice(index);
-    auto in_file = "./test.bin";
-    radio->WriteFirmware(in_file);
+    std::cout << radio->ToString() << std::endl;
+}
+
+void flash_device(uint16_t index, rust::Str firmware_path){
+    auto rdFactory = RadioFactory();
+    auto check_device_availability(rdFactory);
+    auto radio = rdFactory.OpenDevice(index);
+    std::string fw_path = std::string(firmware_path.begin(), firmware_path.end());
+    radio->WriteFirmware(fw_path);
 }
 
 } // namespace radio_tool::radio
