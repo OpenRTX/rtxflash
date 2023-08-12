@@ -7,6 +7,7 @@
 #include "rtxflash/radio_tool/include/radio_tool/radio/radio_factory.hpp"
 #include "rtxflash/radio_tool/include/radio_tool/radio/tyt_radio.hpp"
 #include "rtxflash/radio_tool/include/radio_tool/radio/yaesu_radio.hpp"
+#include <typeinfo>
 
 namespace radio_tool::radio {
 
@@ -28,7 +29,13 @@ rust::Vec<CxxDeviceInfo> get_devices() {
     return devices;
 }
 
-// Flash the first connected radio
+void get_device_info(uint16_t index) {
+    auto rdFactory = RadioFactory();
+    auto radio = rdFactory.OpenDevice(index);
+    std::cout << radio->ToString() << std::endl;
+    std::cout << typeid(radio).name() << std::endl;
+}
+
 void flash_device(){
     auto rdFactory = RadioFactory();
     const auto &d = rdFactory.ListDevices();

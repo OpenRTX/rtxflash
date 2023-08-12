@@ -13,13 +13,18 @@ mod radio_tool_ffi {
 
     unsafe extern "C++" {
         include!("rtxflash/include/radio_tool.h");
-        pub fn get_devices() -> Vec<CxxDeviceInfo>;
+        fn get_devices() -> Vec<CxxDeviceInfo>;
+        fn get_device_info(index: u16);
         fn flash_device() -> Result<()>;
     }
 }
 
 pub fn get_devices() -> Vec<CxxDeviceInfo> {
     radio_tool_ffi::get_devices()
+}
+
+pub fn get_device_info(index: u16) {
+    radio_tool_ffi::get_device_info(index)
 }
 
 pub fn install() {
