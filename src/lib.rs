@@ -1,7 +1,7 @@
-use crate::ffi::CxxDeviceInfo;
+use crate::radio_tool_ffi::CxxDeviceInfo;
 
 #[cxx::bridge(namespace = "radio_tool::radio")]
-mod ffi {
+mod radio_tool_ffi {
     // Shared struct equivalent to RadioInfo
     #[derive(Debug)]
     struct CxxDeviceInfo {
@@ -19,12 +19,12 @@ mod ffi {
 }
 
 pub fn get_devices() -> Vec<CxxDeviceInfo> {
-    ffi::get_devices()
+    radio_tool_ffi::get_devices()
 }
 
 pub fn install() {
     println!("Flashing OpenRTX firmware");
-    if let Err(err) = ffi::flash_device() {
+    if let Err(err) = radio_tool_ffi::flash_device() {
         eprintln!("Error: {}", err);
         // process::exit(1);
     }
