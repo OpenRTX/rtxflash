@@ -1,7 +1,7 @@
 // build.rs
 
 fn main() {
-    cxx_build::bridge("src/main.rs")
+    cxx_build::bridge("src/lib.rs")
         .file("src/radio_tool.cc")
         .file("radio_tool/src/ailunce_fw.cpp")
         .file("radio_tool/src/ailunce_radio.cpp")
