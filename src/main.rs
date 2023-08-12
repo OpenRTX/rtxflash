@@ -1,5 +1,5 @@
 
 fn main() {
-    let devices = rtxflash::list_devices();
+    let devices = rtxflash::get_devices();
     println!("{:?}", devices);
 }
