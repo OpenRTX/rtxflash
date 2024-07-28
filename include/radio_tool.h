@@ -4,9 +4,9 @@
 
 namespace radio_tool::radio {
 
-struct CxxDeviceInfo;
+struct DeviceInfo;
 
-rust::Vec<CxxDeviceInfo> get_devices();
+rust::Vec<DeviceInfo> get_devices();
 void get_device_info(uint16_t index);
 void flash_device(uint16_t index, rust::Str firmware_path);
 

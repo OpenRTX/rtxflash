@@ -12,13 +12,13 @@
 namespace radio_tool::radio {
 
 // List compatible connected devices
-rust::Vec<CxxDeviceInfo> get_devices() {
+rust::Vec<DeviceInfo> get_devices() {
     auto rdFactory = RadioFactory();
-    // Copy fields from radio_tool::RadioInfo to shared struct CxxDeviceInfo
-    rust::Vec<CxxDeviceInfo> devices;
+    // Copy fields from radio_tool::RadioInfo to shared struct DeviceInfo
+    rust::Vec<DeviceInfo> devices;
     for (const auto &d : rdFactory.ListDevices())
     {
-        CxxDeviceInfo info{};
+        DeviceInfo info{};
         info.index = d->index;
         // Convert wstring to string to be compatible with rust::String
         info.manufacturer = std::string(d->manufacturer.begin(), d->manufacturer.end());
