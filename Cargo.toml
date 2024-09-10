@@ -7,6 +7,10 @@ edition = "2021"
 
 [dependencies]
 cxx = "1.0"
+serialport = "4"
+strum = "0"
+strum_macros = "0"
+text-colorizer = "1"
 
 [build-dependencies]
 cxx-build = "1.0"
