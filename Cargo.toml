@@ -6,11 +6,11 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cxx = "1.0"
+# cxx = "1.0"
 serialport = "4"
 strum = "0"
 strum_macros = "0"
 text-colorizer = "1"
 
 [build-dependencies]
-cxx-build = "1.0"
+# cxx-build = "1.0"

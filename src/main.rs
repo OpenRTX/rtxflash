@@ -10,7 +10,7 @@ mod a36plus;
 
 /// Supported targets
 #[derive(Debug, EnumIter)]
-enum Target {
+pub enum Target {
     MD3X0,
     MDUV3X0,
     MD9600,
@@ -19,6 +19,14 @@ enum Target {
     MOD17,
     TTWRPLUS,
     A36PLUS,
+}
+
+#[derive(Clone, Debug)]
+pub struct DeviceInfo {
+    index: u16,
+    manufacturer: String,
+    model: String,
+    port: String,
 }
 
 impl TryFrom<&str> for Target {
@@ -69,7 +77,11 @@ fn print_usage(cmd: &String) {
     process::exit(1);
 }
 
-fn wrap(target: Target, input_path: &str, output_path: &str) -> Result<(), Error> {
+pub fn get_devices() -> Vec<DeviceInfo> {
+    vec![]
+}
+
+pub fn wrap(target: Target, input_path: &str, output_path: &str) -> Result<(), Error> {
     match target {
         Target::MD3X0 => {}
         Target::MDUV3X0 => {}
@@ -83,7 +95,7 @@ fn wrap(target: Target, input_path: &str, output_path: &str) -> Result<(), Error
     Ok(())
 }
 
-fn flash(target: Target, radio_id: &str, file: &str) -> Result<(), Error> {
+pub fn flash(target: Target, radio_id: &str, file: &str) -> Result<(), Error> {
     match target {
         Target::MD3X0 => {}
         Target::MDUV3X0 => {}
@@ -110,8 +122,8 @@ fn main() -> Result<(), Error> {
 
     match &command as &str {
         "list" => {
-            let devices = rtxflash::get_devices();
-            println!("{:?}", devices);
+            // let devices = rtxflash::get_devices();
+            // println!("{:?}", devices);
         }
         "targets" => {
             for target in Target::iter() {
