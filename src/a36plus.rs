@@ -1,11 +1,8 @@
 use serialport::SerialPort;
-use std::env;
 use std::fs::File;
-use std::io::{self, Read, Seek, SeekFrom, Write};
 use std::io::{Error, ErrorKind};
-use std::process;
+use std::io::{Read, Seek, SeekFrom, Write};
 use std::time::Duration;
-use text_colorizer::*; // 0.17.1
 
 const PACKAGE_SIZE: usize = 1024; // 1KB
 const XOR_KEY1: &[u8; 4] = b"KDHT";
