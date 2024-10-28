@@ -1,3 +1,4 @@
+use serialport::SerialPort;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -82,30 +83,17 @@ fn fw_cmd(cmd: u8, args: u8, input: &[u8], size: usize) -> Vec<u8> {
 //     return buffer;
 // }
 
-// fn debug_print(buffer: &[u8], is_tx: bool) {
-//     if is_tx {
-//         print!("\nTX: ");
-//     } else {
-//         print!("\nRX: ");
-//     }
-//     let mut i = 0;
-//     for byte in buffer {
-//         print!("{:02x}, ", byte);
-//         i += 1;
-//         if (i % 16) == 0 {
-//             print!("\n");
-//         }
-//     }
-// }
+pub fn hello(port: &str) -> Result<(), Error> {
+    let mut rx_buffer: Vec<u8> = vec![0; 256];
+    let mut n_read: usize = 0;
 
-pub fn flash(
-    port: String,
-    fw_path: String,
-    progress: Option<&Sender<(usize, usize)>>,
-) -> Result<(), Error> {
+    // Open a new serial port instance
     let mut serial_port = serialport::new(port, 115_200)
-        .timeout(Duration::from_millis(5000))
+        .timeout(Duration::from_millis(1000))
         .open()?;
+
+    // Discard any data in the serial port buffer
+    _ = serial_port.read(&mut rx_buffer);
 
     let data = "BOOTLOADER";
     let tx_buffer = fw_cmd(
@@ -116,21 +104,45 @@ pub fn flash(
     );
     _ = serial_port.write(&tx_buffer);
 
-    let mut rx_buffer: Vec<u8> = vec![0; 256];
-    _ = serial_port.read(&mut rx_buffer);
-    if rx_buffer[0] != 0xaa {
-        return Err(Error::new(
-            ErrorKind::Other,
-            format!("Bad response from bootloader: {:x}", rx_buffer[0]),
-        ));
+    while n_read < 3 {
+        n_read = n_read + serial_port.read(&mut rx_buffer[n_read..]).unwrap();
     }
 
     if rx_buffer[0] != 0xaa || rx_buffer[1] != BootloaderCmd::HELLO as u8 || rx_buffer[2] != 0x06 {
         return Err(Error::new(
             ErrorKind::Other,
-            format!("Bad response from bootloader: {:x}", rx_buffer[2]),
+            format!("[hello] Bad response from bootloader: {:?}", rx_buffer),
         ));
+    } else {
+        Ok(())
     }
+}
+
+pub fn flash(
+    port: String,
+    fw_path: String,
+    progress: Option<&Sender<(usize, usize)>>,
+) -> Result<(), Error> {
+    let mut rx_buffer: Vec<u8> = vec![0; 256];
+    let mut n_read: usize = 0;
+
+    // Try handshake three times
+    for attempt in 0..4 {
+        if attempt == 3 {
+            return Err(Error::new(
+                ErrorKind::Other,
+                format!("[hello] Handshake failed after {:x} attempts!", attempt),
+            ));
+        }
+        if hello(&port).is_ok() {
+            break;
+        }
+    }
+
+    // Open a new serial port instance
+    let mut serial_port = serialport::new(port, 115_200)
+        .timeout(Duration::from_millis(1000))
+        .open()?;
 
     // Open firmware file
     let fw = std::fs::read(fw_path)?;
@@ -146,11 +158,14 @@ pub fn flash(
     _ = serial_port.write(&tx_buffer);
 
     let mut rx_buffer: Vec<u8> = vec![0; 256];
-    _ = serial_port.read(&mut rx_buffer);
+    n_read = 0;
+    while n_read < 3 {
+        n_read = n_read + serial_port.read(&mut rx_buffer[n_read..]).unwrap();
+    }
     if rx_buffer[0] != 0xaa || rx_buffer[1] != BootloaderCmd::SIZE as u8 || rx_buffer[2] != 0x06 {
         return Err(Error::new(
             ErrorKind::Other,
-            format!("Bad response from bootloader: {:x}", rx_buffer[2]),
+            format!("[nchunks] Bad response from bootloader: {:?}", rx_buffer),
         ));
     }
 
@@ -173,14 +188,17 @@ pub fn flash(
 
         // Check response
         let mut rx_buffer: Vec<u8> = vec![0; 256];
-        _ = serial_port.read(&mut rx_buffer);
+        n_read = 0;
+        while n_read < 3 {
+            n_read = n_read + serial_port.read(&mut rx_buffer[n_read..]).unwrap();
+        }
         if rx_buffer[0] != 0xaa
             || rx_buffer[1] != BootloaderCmd::TRANSFER as u8
             || rx_buffer[2] != 0x06
         {
             return Err(Error::new(
                 ErrorKind::Other,
-                format!("Bad response from bootloader: {:x}", rx_buffer[2]),
+                format!("[chunks] Bad response from bootloader: {:?}", rx_buffer),
             ));
         }
 
@@ -198,11 +216,14 @@ pub fn flash(
 
     // Check response
     let mut rx_buffer: Vec<u8> = vec![0; 256];
-    _ = serial_port.read(&mut rx_buffer);
+    n_read = 0;
+    while n_read < 3 {
+        n_read = n_read + serial_port.read(&mut rx_buffer[n_read..]).unwrap();
+    }
     if rx_buffer[0] != 0xaa || rx_buffer[1] != BootloaderCmd::REBOOT as u8 || rx_buffer[2] != 0x06 {
         return Err(Error::new(
             ErrorKind::Other,
-            format!("Bad response from bootloader: {:x}", rx_buffer[2]),
+            format!("[reboot] Bad response from bootloader: {:?}", rx_buffer),
         ));
     }
 
