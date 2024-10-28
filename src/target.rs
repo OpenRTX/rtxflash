@@ -1,8 +1,9 @@
 use std::fmt;
+use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
 /// Supported targets
-#[derive(Debug, EnumIter)]
+#[derive(Clone, Debug, EnumIter)]
 pub enum Target {
     MD3X0,
     MDUV3X0,
@@ -67,8 +68,12 @@ impl fmt::Display for Target {
     }
 }
 
+pub fn get_targets() -> TargetIter {
+    Target::iter()
+}
+
 pub fn get_devices() -> Vec<DeviceInfo> {
-    let mut targets = vec![] as Vec<DeviceInfo>;
+    let mut devices = vec![] as Vec<DeviceInfo>;
 
     // TODO: build a list of OpenRTX radios VID:PID
     // let devices = usb_enumeration::enumerate();
@@ -76,13 +81,13 @@ pub fn get_devices() -> Vec<DeviceInfo> {
 
     // Add serial port based devices
     for port in serialport::available_ports().unwrap() {
-        let device = DeviceInfo {
-            index: targets.len() as u16,
-            manufacturer: String::from("Unknown"),
-            model: String::from("Unknown"),
+        let d = DeviceInfo {
+            index: devices.len() as u16,
+            manufacturer: String::from(""),
+            model: String::from(""),
             port: port.port_name,
         };
-        targets.push(device);
+        devices.push(d);
     }
-    targets
+    devices
 }

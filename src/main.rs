@@ -1,7 +1,6 @@
 use std::env;
 use std::io::Error;
 use std::process;
-use strum::IntoEnumIterator;
 use text_colorizer::*; // 0.17.1
 
 mod a36plus;
@@ -35,13 +34,12 @@ fn main() -> Result<(), Error> {
 
     match &command as &str {
         "list" => {
-            let devices = target::get_devices();
-            for device in devices {
+            for device in target::get_devices() {
                 println!("{}", device);
             }
         }
         "targets" => {
-            for target in target::Target::iter() {
+            for target in target::get_targets() {
                 println!("{}", target);
             }
         }
@@ -70,7 +68,7 @@ fn main() -> Result<(), Error> {
                 .expect("target::Target not recognized!");
             let radio = radio_str.unwrap();
             let file = file_str.unwrap();
-            flash::flash(target, &radio, &file)?;
+            flash::flash(&target, &radio, &file)?;
         }
         _ => print_usage(&args[0]),
     };
