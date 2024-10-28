@@ -1,4 +1,3 @@
-use serialport::SerialPort;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -8,12 +7,29 @@ const PACKAGE_SIZE: usize = 1024; // 1KB
 const XOR_KEY1: &[u8; 4] = b"KDHT";
 const XOR_KEY2: &[u8; 4] = b"RBGI";
 
+/*
+ * 0x52 ... (Read Data): This command is handled in FUN_08007ec8 and FUN_08009a8c. The address to read from is specified in bytes 1 and 2. The number of bytes to read is specified in byte 3. If the address is 0x8000, VFO settings are read. If the address is 0x9000, global settings are read. Otherwise, data is read directly from the SPI flash. The read data is then sent back over the UART.
+ * 0x57 ... (Write Data): Also handled in FUN_08007ec8 and FUN_08009a8c. The address to write to is specified in bytes 1 and 2. The number of bytes to write is specified in byte 3. Data to be written follows in subsequent bytes. If the address is 0x8000, VFO settings are written. If the address is 0x9000, global settings are written. Otherwise, data is written directly to the SPI flash.
+ */
+
 enum BootloaderCmd {
-    HELLO = 0x01,
-    SIZE = 0x04,
-    TRANSFER = 0x03,
-    REBOOT = 0x45,
+    HELLO = 0x01,    // Begin communication
+    TRANSFER = 0x03, // Send firmware
+    SIZE = 0x04,     // Send firmware transfer size
+    REBOOT = 0x45,   // Reboot the radio
 }
+
+// enum FirmwareCmd {
+//     HANDSHAKE = 0x02,
+//     SETADDRESS = 0x03,
+//     ERASE = 0x04,
+//     OVER = 0x06,
+//     D = 0x44,       // Sent during PROGRAM
+//     UNKNOWN = 0x46, // The function of this command is unknown
+//     READ = 0x52,
+//     U = 0x55,       // Sent after PROGRAM and MODEL
+//     WRITE = 0x57,
+// }
 
 // This looks like CRC16 CCITT
 fn crc16(data: &[u8], offset: usize, count: usize) -> u16 {
@@ -33,7 +49,7 @@ fn crc16(data: &[u8], offset: usize, count: usize) -> u16 {
 }
 
 // This function encodes the message to be sent using the radio bootloader serial protocol
-fn prep_cmd(cmd: u8, args: u8, input: &[u8], size: usize) -> Vec<u8> {
+fn fw_cmd(cmd: u8, args: u8, input: &[u8], size: usize) -> Vec<u8> {
     let mut buffer: Vec<u8> = vec![0; 5 + input.len() + 3];
     buffer[0] = 0xaa;
     buffer[1] = cmd;
@@ -48,21 +64,38 @@ fn prep_cmd(cmd: u8, args: u8, input: &[u8], size: usize) -> Vec<u8> {
     return buffer;
 }
 
-fn debug_print(buffer: &[u8], is_tx: bool) {
-    if is_tx {
-        print!("\nTX: ");
-    } else {
-        print!("\nRX: ");
-    }
-    let mut i = 0;
-    for byte in buffer {
-        print!("{:02x}, ", byte);
-        i += 1;
-        if (i % 16) == 0 {
-            print!("\n");
-        }
-    }
-}
+// // This function encodes the message to be sent using the fw serial protocol for data write
+// fn data_cmd(cmd: u8, package_id: u16, data: &[u8], size: usize) -> Vec<u8> {
+//     let mut buffer: Vec<u8> = vec![0; 5 + data.len() + 3];
+//     buffer[0] = 0xa5;
+//     buffer[1] = cmd;
+//     buffer[2] = (package_id >> 8) as u8;
+//     buffer[3] = package_id as u8;
+//     buffer[4] = ((size as u16) >> 8) as u8;
+//     buffer[5] = size as u8;
+//     buffer[6..6 + data.len()].copy_from_slice(data);
+//     let digest = crc16(&buffer, 1, data.len() + 4);
+//     buffer[6 + data.len()] = (digest >> 8) as u8;
+//     buffer[6 + data.len() + 1] = digest as u8;
+//     buffer[6 + data.len() + 2] = 0xef;
+//     return buffer;
+// }
+
+// fn debug_print(buffer: &[u8], is_tx: bool) {
+//     if is_tx {
+//         print!("\nTX: ");
+//     } else {
+//         print!("\nRX: ");
+//     }
+//     let mut i = 0;
+//     for byte in buffer {
+//         print!("{:02x}, ", byte);
+//         i += 1;
+//         if (i % 16) == 0 {
+//             print!("\n");
+//         }
+//     }
+// }
 
 pub fn flash(port: &str, fw_path: &str) -> Result<(), Error> {
     let mut serial_port = serialport::new(port, 115_200)
@@ -70,7 +103,7 @@ pub fn flash(port: &str, fw_path: &str) -> Result<(), Error> {
         .open()?;
 
     let data = "BOOTLOADER";
-    let tx_buffer = prep_cmd(
+    let tx_buffer = fw_cmd(
         BootloaderCmd::HELLO as u8,
         0,
         data.as_bytes(),
@@ -104,7 +137,7 @@ pub fn flash(port: &str, fw_path: &str) -> Result<(), Error> {
     }
     let mut tx_buffer = vec![0];
     tx_buffer[0] = n_chunks;
-    let tx_buffer = prep_cmd(BootloaderCmd::SIZE as u8, 0, &tx_buffer, tx_buffer.len());
+    let tx_buffer = fw_cmd(BootloaderCmd::SIZE as u8, 0, &tx_buffer, tx_buffer.len());
     _ = serial_port.write(&tx_buffer);
 
     let mut rx_buffer: Vec<u8> = vec![0; 256];
@@ -125,7 +158,7 @@ pub fn flash(port: &str, fw_path: &str) -> Result<(), Error> {
             (i + 1) * PACKAGE_SIZE
         };
         // Original flasher advertises 1024B even in the last smaller chunk
-        let tx_buffer = prep_cmd(
+        let tx_buffer = fw_cmd(
             BootloaderCmd::TRANSFER as u8,
             i as u8,
             &fw[begin..end],
@@ -148,7 +181,7 @@ pub fn flash(port: &str, fw_path: &str) -> Result<(), Error> {
     }
 
     // Transfer complete
-    let tx_buffer = prep_cmd(BootloaderCmd::REBOOT as u8, 0x00, &vec![], 0);
+    let tx_buffer = fw_cmd(BootloaderCmd::REBOOT as u8, 0x00, &vec![], 0);
     _ = serial_port.write(&tx_buffer);
 
     // Check response
@@ -206,3 +239,86 @@ pub fn wrap(input_path: &str, output_path: &str) -> Result<(), Error> {
     }
     Ok(())
 }
+
+// pub fn write(port: &str, bin_path: &str) -> Result<(), Error> {
+//     let mut serial_port = serialport::new(port, 115_200)
+//         .timeout(Duration::from_millis(5000))
+//         .open()?;
+//
+//     let handshake_str = "PROGRAM";
+//     let model = "JC37"
+//     _ = serial_port.write(&handshake_str);
+//     _ = serial_port.write(&model);
+//     _ = serial_port.write(&BootloaderCmd::U);
+//
+//     let mut rx_buffer: Vec<u8> = vec![0; 256];
+//     _ = serial_port.read(&mut rx_buffer);
+//     if rx_buffer[0] != 0x06 {
+//         return Err(Error::new(
+//             ErrorKind::Other,
+//             format!("Bad response from radio: {:x}", rx_buffer[0]),
+//         ));
+//     }
+//
+//     // Begin download D
+//     _ = serial_port.write(&BootloaderCmd::D);
+//
+//     sleep(0.5)
+//
+//     // TODO: reopen serial link
+//
+//     // Upload data to the firmware
+//     let tx_buffer = data_cmd(
+//         FirmwareCmd::HANDSHAKE as u8,
+//         0,
+//         handshake_str.as_bytes(),
+//         handshake_str.as_bytes().len(),
+//     );
+//     _ = serial_port.write(&tx_buffer);
+//
+//     let mut rx_buffer: Vec<u8> = vec![0; 256];
+//     _ = serial_port.read(&mut rx_buffer);
+//     if rx_buffer[0] != 0xa5 {
+//         return Err(Error::new(
+//             ErrorKind::Other,
+//             format!("Bad response from bootloader: {:x}", rx_buffer[0]),
+//         ));
+//     }
+//
+//     // Set address
+//     let address_buf = vec![3];
+//     address_buf[2] = address >> 16 & 0xff;
+//     address_buf[1] = address >> 8 & 0xff;
+//     address_buf[0] = address & 0xff;
+//     let tx_buffer = data_cmd(
+//         FirmwareCmd::SETADDRESS as u8,
+//         0,
+//         address_buf.as_bytes(),
+//         address_buf.as_bytes().len(),
+//     );
+//     _ = serial_port.write(&tx_buffer);
+//
+//     _ = serial_port.read(&mut rx_buffer);
+//     if rx_buffer[0] != 0xa5 {
+//         return Err(Error::new(
+//             ErrorKind::Other,
+//             format!("Bad response from bootloader: {:x}", rx_buffer[0]),
+//         ));
+//     }
+//
+//     // TODO: Erase block
+//
+//     // TODO: Write data
+//
+//     // Send Over package
+//     let over_str = "Over";
+//     let tx_buffer = data_cmd(
+//         FirmwareCmd::CMD_OVER as u8,
+//         0,
+//         over_str.as_bytes(),
+//         over_str.as_bytes().len(),
+//     );
+//     _ = serial_port.write(&tx_buffer);
+//
+//     serial_port.close();
+// }
