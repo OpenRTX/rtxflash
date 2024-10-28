@@ -1,6 +1,7 @@
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::io::{Read, Seek, SeekFrom, Write};
+use std::sync::mpsc::Sender;
 use std::time::Duration;
 
 const PACKAGE_SIZE: usize = 1024; // 1KB
@@ -97,7 +98,11 @@ fn fw_cmd(cmd: u8, args: u8, input: &[u8], size: usize) -> Vec<u8> {
 //     }
 // }
 
-pub fn flash(port: &str, fw_path: &str) -> Result<(), Error> {
+pub fn flash(
+    port: String,
+    fw_path: String,
+    progress: Option<&Sender<(usize, usize)>>,
+) -> Result<(), Error> {
     let mut serial_port = serialport::new(port, 115_200)
         .timeout(Duration::from_millis(5000))
         .open()?;
@@ -177,6 +182,13 @@ pub fn flash(port: &str, fw_path: &str) -> Result<(), Error> {
                 ErrorKind::Other,
                 format!("Bad response from bootloader: {:x}", rx_buffer[2]),
             ));
+        }
+
+        if progress.is_some() {
+            match progress.unwrap().send((i + 1, n_chunks as usize)) {
+                Err(e) => println!("Error when logging progress: {e}"),
+                Ok(_) => (),
+            }
         }
     }
 

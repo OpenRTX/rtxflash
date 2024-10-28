@@ -68,7 +68,7 @@ fn main() -> Result<(), Error> {
                 .expect("target::Target not recognized!");
             let radio = radio_str.unwrap();
             let file = file_str.unwrap();
-            flash::flash(&target, &radio, &file)?;
+            flash::flash(target, radio, file, None)?;
         }
         _ => print_usage(&args[0]),
     };
