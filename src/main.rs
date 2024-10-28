@@ -36,7 +36,9 @@ fn main() -> Result<(), Error> {
     match &command as &str {
         "list" => {
             let devices = target::get_devices();
-            println!("{:?}", devices);
+            for device in devices {
+                println!("{}", device);
+            }
         }
         "targets" => {
             for target in target::Target::iter() {

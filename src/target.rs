@@ -68,5 +68,21 @@ impl fmt::Display for Target {
 }
 
 pub fn get_devices() -> Vec<DeviceInfo> {
-    vec![]
+    let mut targets = vec![] as Vec<DeviceInfo>;
+
+    // TODO: build a list of OpenRTX radios VID:PID
+    // let devices = usb_enumeration::enumerate();
+    // println!("{:#?}", devices);
+
+    // Add serial port based devices
+    for port in serialport::available_ports().unwrap() {
+        let device = DeviceInfo {
+            index: targets.len() as u16,
+            manufacturer: String::from("Unknown"),
+            model: String::from("Unknown"),
+            port: port.port_name,
+        };
+        targets.push(device);
+    }
+    targets
 }
