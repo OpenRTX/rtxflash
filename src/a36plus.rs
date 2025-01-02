@@ -1,4 +1,3 @@
-use serialport::SerialPort;
 use std::fs::File;
 use std::io::{Error, ErrorKind};
 use std::io::{Read, Seek, SeekFrom, Write};
@@ -124,7 +123,7 @@ pub fn flash(
     progress: Option<&Sender<(usize, usize)>>,
 ) -> Result<(), Error> {
     let mut rx_buffer: Vec<u8> = vec![0; 256];
-    let mut n_read: usize = 0;
+    let mut n_read: usize;
 
     // Try handshake three times
     for attempt in 0..4 {
@@ -157,7 +156,6 @@ pub fn flash(
     let tx_buffer = fw_cmd(BootloaderCmd::SIZE as u8, 0, &tx_buffer, tx_buffer.len());
     _ = serial_port.write(&tx_buffer);
 
-    let mut rx_buffer: Vec<u8> = vec![0; 256];
     n_read = 0;
     while n_read < 3 {
         n_read = n_read + serial_port.read(&mut rx_buffer[n_read..]).unwrap();
